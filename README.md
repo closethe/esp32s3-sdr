@@ -22,6 +22,40 @@ AI-generated: we understand the capture mechanism well on the ESP32-C61 used in
 our ESPARGOS One array, but porting it to the whole ESP32 family by hand would
 have been too much work.
 
+## Transmit (this fork)
+
+Upstream removed transmit in `ab76232`; the dump engine stayed bidirectional,
+so this fork restores it on the ESP32-S3 and keeps the receive path untouched.
+Details, registers and limits: [docs/tx.md](docs/tx.md). Host tooling:
+`tools/s3_tx.py`, self test `tools/tx_selftest.py`, over-the-air check
+`tools/ota_check.py`.
+
+Commands added to `CAPS`: `TX16 TX20 TXRUN REPLAY CW`.
+
+| Property | Measured (two boards, over the air) |
+| --- | --- |
+| Transmit window | ~2250-2650 MHz, flat 2360-2520 MHz (receive tunes 1842-2750) |
+| Modulation bandwidth | +-10 MHz flat, -6 dB at 12 MHz, -26 dB at 16 MHz |
+| Sample rates | 80 and 40 MS/s, single frame up to 16380 samples (205 us at 80 MS/s) |
+| Modes | one-shot frame, repeated frames with per-frame CRC, modem-loop REPLAY, unmodulated CW |
+| Receive side | unchanged; RX works while the transmitter is idle |
+
+Transmitting narrows the usable band relative to reception: the LO and receive
+chain tune 1842-2750 MHz, but the transmit chain only gets its 2.4 GHz PA
+configuration from the PHY, so outside the window above `emit()` completes and
+almost no energy reaches the antenna.
+
+**Which receiver can hear it:** not an RTL-SDR. An R820T2 dongle tunes
+24-1766 MHz, so 2.4 GHz is out of band, and its 2.4-3.2 MS/s cannot see a
+20 MHz-wide signal anyway. Use a HackRF (1 MHz-6 GHz, 20 MS/s), a Pluto or
+LimeSDR, or a second ESP32-S3 running this firmware. An RTL-SDR plus an
+external downconverter only shows a carrier or a narrow slice.
+
+Only 2400-2483.5 MHz is licence-free (ISM) among the usable window; test there,
+at the lowest power that still works, and put the antenna on a dummy load or
+shielded box if you are not licensed for the rest. An unmodified module is also
+only type-approved with its certified firmware.
+
 ## Quick start
 
 1. Flash the firmware from the [browser installer](https://espargos.net/espsdr/app/flash.html).
