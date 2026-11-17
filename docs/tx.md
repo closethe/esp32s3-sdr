@@ -195,3 +195,59 @@ a second ESP32-S3 board (`COM7`, receive-only firmware) on the same desk:
 
 Absolute power still needs a calibrated receiver or a spectrum analyser; an
 unmodified module is also only type-approved with its certified firmware.
+
+## Measured transmit window
+
+Swept with `REPLAY` (the real I/Q path, not the PHY test tone), +1 MHz tone,
+60/512 amplitude, receiver on 2442 MHz +-0 dBm gain index 20
+(`tools/ota_range.py`):
+
+| LO | +1 MHz line (LSB) | Note |
+| --- | --- | --- |
+| 2100, 2200 MHz | 0.17 / 0.03 | transmit chain muted |
+| 2250 MHz | 84 | usable, ~-17 dB from peak |
+| 2280 MHz | 161 | |
+| 2320-2360 MHz | 370-520 | |
+| 2400-2520 MHz | 535-563 | flat top |
+| 2550 MHz | 275 | |
+| 2600 MHz | 81 | edge |
+| 2650 MHz | 12 | almost gone |
+| 2700, 2750 MHz | 5-7 | transmit chain muted |
+
+So the transmit window is roughly **2250-2650 MHz, best 2360-2520 MHz**. This
+is narrower than the receive range (1842-2750 MHz): the LO and the receive
+chain tune that widely, but the transmit chain only gets its 2.4 GHz
+configuration (PA bias, matching, band select) from the PHY, so outside that
+window `emit()` still completes but almost nothing leaves the antenna.
+
+Modulation bandwidth (`REPLAY` tones at increasing offset, receiver kept wide so
+this is the transmit side; `BANDWIDTH 0` and `BANDWIDTH 20` behave the same):
+
+| Offset | Level |
+| --- | --- |
+| 0.1-10 MHz | flat, 52-55 dB (relative) |
+| 12 MHz | -6 dB |
+| 16 MHz | -26 dB |
+| 20 MHz | -38 dB |
+| 25 MHz | -48 dB |
+
+Practically **+-10 MHz of usable modulation bandwidth** (~20 MHz wide) at
+80 MS/s; the 40 MHz Nyquist is not reachable because the DAC reconstruction and
+baseband filter roll off first. The `BANDWIDTH` command does not change the
+transmit response measurably.
+
+## Which receiver can hear it
+
+At 2.4 GHz the usual hobby receivers mostly cannot:
+
+| Receiver | Tuning range | Works? |
+| --- | --- | --- |
+| RTL-SDR (R820T2 dongle) | 24-1766 MHz | No - far out of band; needs an external downconverter |
+| RTL-SDR + downconverter (e.g. Ham-It-Up) | downconverted into 24-1766 MHz | Yes, narrowband only; 2.4 MS/s cannot see the 20 MHz-wide signal |
+| HackRF One | 1 MHz-6 GHz | Yes, 20 MS/s covers the useful bandwidth |
+| ADALM-PLUTO / LimeSDR / USRP | up to 3.8-6 GHz | Yes |
+| Another ESP32-S3 with this firmware | 1842-2750 MHz | Yes, this is what the tests above used |
+
+RTL-SDR also tops out around 2.4-3.2 MS/s (8 MS/s with hacks), so even with a
+downconverter it can only observe a CW carrier or a narrow slice, not the full
+modulated signal.
