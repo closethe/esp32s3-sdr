@@ -1,8 +1,9 @@
-# ESP-SDR firmware
+# ESP-SDR firmware for esp32s3 
 
-<img src="docs/espargos-logo.png" width="40%" align="right" alt="ESPARGOS logo">
+support 2.4ghz RX and TX.
 
-### Try it yourself: [Project overview](https://espargos.net/espsdr/) · [Browser SDR viewer](https://espargos.net/espsdr/app/) · [Browser firmware installer](https://espargos.net/espsdr/app/flash.html)
+fork and fixed from espargos .
+
 
 ESP-SDR turns the Wi-Fi/Bluetooth radio of an ordinary ESP32 board into a
 software-defined radio. Upstream ships receive-only; this fork restores the
