@@ -5,9 +5,10 @@
 ### Try it yourself: [Project overview](https://espargos.net/espsdr/) · [Browser SDR viewer](https://espargos.net/espsdr/app/) · [Browser firmware installer](https://espargos.net/espsdr/app/flash.html)
 
 ESP-SDR turns the Wi-Fi/Bluetooth radio of an ordinary ESP32 board into a
-receive-only software-defined radio. The firmware captures raw I/Q samples from
-the chip's own receiver and sends them to your computer over USB or UART.
-No extra SDR hardware is needed.
+software-defined radio. Upstream ships receive-only; this fork restores the
+ESP32-S3 transmit path (see [Transmit](docs/tx.md)), so the same board can play
+I/Q into its RF front end as well as capture it. The firmware sends raw samples
+to your computer over USB or UART. No extra SDR hardware is needed.
 
 <br clear="all">
 

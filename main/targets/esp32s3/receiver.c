@@ -27,6 +27,7 @@
 #include "rx_lo.h"
 #include "esp_rom_sys.h"
 #include "ring_capture.h"
+#include "tx.h"
 
 /* Vendor S3 adctrig uses the 64 KiB aperture at 0x3fcd0000 (MAC_DUMP_USAGE=4).
  * The continuous ring also uses the two banks below it. Keep all three, in
@@ -213,6 +214,31 @@ static bool capture(unsigned n, unsigned divider, unsigned format) {
     }
     return burst_send_capture(n, format, elapsed);
 }
+
+/* Transmit backend hooks. The TX path reuses tuning/preparation so both
+ * directions share one calibrated radio state. */
+static void tx_prepare_rx(void) { prepare_rx(); }
+static void tx_tune(unsigned mhz) { s3_tune(mhz); }
+static unsigned tx_frequency(void) { return frequency_mhz; }
+static void tx_invalidate(void) { rx_ready = false; }
+static bool tx_gain_ready(void) { return gain_applied != 0; }
+static void tx_filter_apply(void) { rx_filter_apply(); }
+static void tx_filter_restore(void) { rx_filter_restore(); }
+static bool tx_capture(unsigned n, unsigned divider, unsigned format) {
+    return capture(n, divider, format);
+}
+static const s3_tx_hooks_t tx_hooks = {
+    .prepare_rx = tx_prepare_rx,
+    .tune = tx_tune,
+    .frequency_mhz = tx_frequency,
+    .invalidate_rx = tx_invalidate,
+    .gain_ready = tx_gain_ready,
+    .filter_apply = tx_filter_apply,
+    .filter_restore = tx_filter_restore,
+    .capture = tx_capture,
+};
+void burst_serial_idle_hook(void) { s3_tx_idle(); }
+void burst_serial_release_hook(void) { s3_tx_release(); }
 
 /* Continuous modes (ring_capture.c). Reports end with one text line:
  * <TAG> status detail units pairs elapsed_us late_max work_max_cycles
@@ -455,6 +481,7 @@ static bool ring_command(const char *line) {
 static void handle_command(char *line) {
     if (burst_version_command(line)) return;
     if (burst_gpio_command(line)) return;
+    if (s3_tx_command(line)) return;
 #ifdef FILTER_REGISTER_PROBE
     if (filter_probe_command(line)) return;
 #endif
@@ -473,7 +500,8 @@ static void handle_command(char *line) {
 #if CONFIG_ESP_SDR_UART_ENABLED
               "DUALSERIAL "
 #endif
-              "TUNEEXT RX40 RX16 LPFANA GAIN HWAGC IQ8 RING SPEC SPECN SPECCAPS SPECSTAT DCT\n");
+              "TUNEEXT RX40 RX16 LPFANA GAIN HWAGC IQ8 RING SPEC SPECN SPECCAPS SPECSTAT DCT "
+              "TX16 TX20 TXRUN REPLAY CW\n");
     } else if (sscanf(line, "BANDWIDTH %u %c", &n, &extra) == 1 &&
                (!n || (n >= RX_BANDWIDTH_MIN && n <= RX_BANDWIDTH_MAX))) {
         rx_filter = rx_bandwidth_dcap(n);
@@ -536,5 +564,6 @@ void app_main(void) {
     ESP_ERROR_CHECK(usb_serial_jtag_driver_uninstall());
     burst_serial_init();
     ring_capture_init();
+    s3_tx_bind(&tx_hooks);
     burst_serial_serve(handle_command);
 }

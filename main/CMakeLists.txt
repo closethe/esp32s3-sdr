@@ -43,7 +43,7 @@ if(IDF_TARGET STREQUAL "esp32s3" OR IDF_TARGET STREQUAL "esp32c3")
     list(APPEND sources "common/rx_gain_verify.c")
 endif()
 if(IDF_TARGET STREQUAL "esp32s3")
-    list(APPEND sources "common/ring_capture.c" "${target_dir}/s3_fft_rnd.S" "${target_dir}/s3_unpack.S" "${target_dir}/s3_core1.S" "${target_dir}/s3_firdot.S")
+    list(APPEND sources "common/ring_capture.c" "${target_dir}/s3_fft_rnd.S" "${target_dir}/s3_unpack.S" "${target_dir}/s3_core1.S" "${target_dir}/s3_firdot.S" "${target_dir}/tx.c")
     # SPEC-mode FFT; pinned submodule, the component manager stays disabled.
     list(APPEND dependencies esp-dsp)
     list(APPEND fragments "${target_dir}/linker.lf")

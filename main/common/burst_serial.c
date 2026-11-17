@@ -132,6 +132,27 @@ bool burst_serial_stop_requested(void) {
     return stopped;
 }
 
+/* Binary uploads follow a text command on the same port. USB Serial/JTAG
+ * exposes 64-byte RX chunks, so loop until the transaction is complete. */
+size_t burst_serial_read(void *dst, size_t size, int64_t timeout_us) {
+    uint8_t *p = dst;
+    size_t done = 0;
+    int64_t deadline = esp_timer_get_time() + timeout_us;
+    while (done < size) {
+        int got = read_port(active_port, p + done, size - done > 64 ? 64 : size - done);
+        if (got > 0) {
+            done += (size_t)got;
+            continue;
+        }
+        if (esp_timer_get_time() >= deadline) break;
+        vTaskDelay(1);
+    }
+    return done;
+}
+
+__attribute__((weak)) void burst_serial_idle_hook(void) {}
+__attribute__((weak)) void burst_serial_release_hook(void) {}
+
 int burst_serial_poll_line(char *line, size_t capacity) {
     for (unsigned j = 0; j < BURST_SERIAL_COUNT; ++j) {
         unsigned port = (next_port + j) % BURST_SERIAL_COUNT;
@@ -255,6 +276,7 @@ void burst_serial_serve(void (*handle)(char *line)) {
         if (esp_timer_get_time() >= lease_deadline) owner = -1;
         int status = burst_serial_poll_line(line, sizeof(line));
         if (!status) {
+            burst_serial_idle_hook();
             vTaskDelay(1);
             continue;
         }
@@ -269,6 +291,7 @@ void burst_serial_serve(void (*handle)(char *line)) {
         }
         owner = port;
         if (!strcmp(line, "RELEASE")) {
+            burst_serial_release_hook();
             serve_reply("OK\n");
             owner = -1;
         } else {

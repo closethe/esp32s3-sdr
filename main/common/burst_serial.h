@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef enum { BURST_SERIAL_USB, BURST_SERIAL_UART, BURST_SERIAL_COUNT } burst_serial_port_t;
 
@@ -16,6 +17,13 @@ unsigned burst_serial_baud(void);
 bool burst_serial_send(const void *data, size_t size);
 /* Write only what fits now; never wait for the transport. */
 size_t burst_serial_try_send(const void *data, size_t size);
+/* Read exactly what the host uploads for a binary transaction. Returns the
+ * number of bytes received before the deadline expired. */
+size_t burst_serial_read(void *dst, size_t size, int64_t timeout_us);
+
+/* Hooks for backends with continuous transmitters (weak no-ops by default). */
+void burst_serial_idle_hook(void);
+void burst_serial_release_hook(void);
 
 /* Consume a stream stop request on the owning port only. */
 bool burst_serial_stop_requested(void);
