@@ -33,3 +33,8 @@ Thumbs.db
 
 # CI SDK checkout
 /.esp-idf/
+
+# Local-only artifacts: flash backup and vendor PHY libraries
+/backup/
+/esp-phy-lib/
+/capture_*.bin
